@@ -1,0 +1,51 @@
+name: Publish
+on:
+  push:
+    tags: ["*"]
+
+env:
+  SOLUTION_NAME: Umbra.CounterSpyPlugin
+  RELEASE_DIR: out/Release
+
+jobs:
+  Build:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Download Dalamud Latest
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+
+      - name: Download Umbra Latest
+        run: |
+          Invoke-WebRequest -Uri https://raw.githubusercontent.com/una-xiv/umbra-dist/main/dist/Umbra/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\installedPlugins\Umbra\dist"
+
+      - name: Restore solution
+        run: dotnet restore -r win ${{ env.SOLUTION_NAME }}.sln
+
+      - name: Build solution
+        run: |
+          dotnet restore -r win ${{ env.SOLUTION_NAME }}.sln
+          dotnet build --configuration Release
+
+      - name: Create plugin archive
+        run: Compress-Archive -Path ${{env.RELEASE_DIR}}* -DestinationPath ${{env.RELEASE_DIR}}/${{env.SOLUTION_NAME}}.zip
+
+      - name: Publish Plugin
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{env.RELEASE_DIR}}/${{env.SOLUTION_NAME}}.zip
