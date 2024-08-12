@@ -75,7 +75,6 @@ internal sealed class CounterSpyMarker(
             || player.IsOccupied
             || !GetConfigValue<bool>("Enabled")
         ) {
-            Logger.Info("Remove all.");
             RemoveAllMarkers();
             return;
         }
