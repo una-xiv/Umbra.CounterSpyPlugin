@@ -3,9 +3,9 @@
     <PropertyGroup>
         <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
     </PropertyGroup>
-<!--	<PropertyGroup>-->
+	<PropertyGroup>
 <!--        <UmbraLibPath>Z:\FFXIV-plugins\una-xiv-plugins\Umbra\out\Release\</UmbraLibPath>-->
-<!--    </PropertyGroup>-->
+    </PropertyGroup>
     <PropertyGroup>
         <UmbraLibPath>$([System.IO.Directory]::GetDirectories($(appdata)\XIVLauncher\installedPlugins\Umbra\)[0])\</UmbraLibPath>
     </PropertyGroup>

@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using Umbra.Common;
 using Umbra.Game;
@@ -9,10 +11,10 @@ namespace Umbra.CounterSpyPlugin;
 
 [Service]
 internal sealed class CounterSpyMarker(
-    IObjectTable objectTable,
-    IClientState clientState,
-    IPlayer      player,
-    IZoneManager zoneManager
+    CounterSpyRepository repository,
+    IPlayer              player,
+    IZoneManager         zoneManager,
+    CounterSpyRenderer   renderer
 ) : WorldMarkerFactory
 {
     public override string Id          => "Umbra_CounterSpyMarker";
@@ -47,6 +49,12 @@ internal sealed class CounterSpyMarker(
                 null,
                 true
             ),
+            new BooleanMarkerConfigVariable(
+                "ShowEffect",
+                "Show the eye of Sauron on the player targeting you.",
+                null,
+                true
+            ),
             new IntegerMarkerConfigVariable(
                 "PlayerIconId",
                 "Icon ID for players targeting you",
@@ -67,37 +75,34 @@ internal sealed class CounterSpyMarker(
     [OnTick]
     private void OnTick()
     {
-        if (null == clientState.LocalPlayer
-            || !zoneManager.HasCurrentZone
+        if (!zoneManager.HasCurrentZone
             || player.IsBetweenAreas
             || player.IsInCutscene
             || player.IsDead
             || player.IsOccupied
             || !GetConfigValue<bool>("Enabled")
-        ) {
+           ) {
             RemoveAllMarkers();
             return;
         }
 
-        ulong localPlayerId = clientState.LocalPlayer.GameObjectId;
-        uint  mapId         = zoneManager.CurrentZone.Id;
+        CounterSpyRenderer.Enabled = GetConfigValue<bool>("ShowEffect");
+
+        uint mapId = zoneManager.CurrentZone.Id;
 
         List<string> usedIds = [];
 
-        foreach (var obj in objectTable) {
-            if (!obj.IsValid()
-                || obj.IsDead
-                || obj.GameObjectId == localPlayerId
-                || obj.TargetObjectId != localPlayerId
-                || obj.ObjectKind is not (ObjectKind.Player or ObjectKind.BattleNpc)
-            ) continue;
+        List<IGameObject> targets = repository.GetTargets(
+            GetConfigValue<bool>("EnablePlayers"),
+            GetConfigValue<bool>("EnableNPCs")
+        );
 
-            switch (obj.ObjectKind) {
-                case ObjectKind.Player when !GetConfigValue<bool>("EnablePlayers"):
-                case ObjectKind.BattleNpc when !GetConfigValue<bool>("EnableNPCs"):
-                    continue;
-            }
+        if (targets.Count == 0) {
+            RemoveAllMarkers();
+            return;
+        }
 
+        foreach (var obj in targets) {
             var key = $"CounterSpyMarker_{mapId}_{obj.GameObjectId}";
             usedIds.Add(key);
 
