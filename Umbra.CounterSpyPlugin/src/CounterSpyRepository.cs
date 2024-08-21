@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
@@ -17,6 +18,8 @@ internal sealed class CounterSpyRepository(
 ) : IDisposable
 {
     private readonly Dictionary<ulong, IGameObject> _objects = [];
+
+    public bool IsPreviewMode { get; set; }
 
     public List<IGameObject> GetTargets(bool players, bool npcs)
     {
@@ -48,14 +51,20 @@ internal sealed class CounterSpyRepository(
                 return;
             }
 
-            ulong       playerId = clientState.LocalPlayer.GameObjectId;
-            List<ulong> ids      = [];
+            ulong       playerId  = clientState.LocalPlayer.GameObjectId;
+            Vector3     playerPos = clientState.LocalPlayer.Position;
+            List<ulong> ids       = [];
 
-            foreach (var obj in objectTable) {
+            // Sort objects by distance to player.
+            List<IGameObject> objects =
+                objectTable.ToArray().OrderBy(p => Vector3.Distance(playerPos, p.Position)).ToList();
+
+            foreach (var obj in objects) {
                 if (obj.IsValid()
-                    && obj.TargetObjectId > 0
+                    && (obj.ObjectKind is ObjectKind.Player or ObjectKind.BattleNpc)
                     && obj.TargetObjectId != obj.GameObjectId
-                    && obj.TargetObjectId == playerId
+                    && obj.GameObjectId != playerId
+                    && (IsPreviewMode || obj.TargetObjectId == playerId)
                     && !obj.IsDead
                    ) {
                     ids.Add(obj.GameObjectId);

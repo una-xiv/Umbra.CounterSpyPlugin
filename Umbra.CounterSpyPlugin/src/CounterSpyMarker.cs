@@ -1,8 +1,7 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
+using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Plugin.Services;
 using Umbra.Common;
 using Umbra.Game;
 using Umbra.Markers;
@@ -13,8 +12,7 @@ namespace Umbra.CounterSpyPlugin;
 internal sealed class CounterSpyMarker(
     CounterSpyRepository repository,
     IPlayer              player,
-    IZoneManager         zoneManager,
-    CounterSpyRenderer   renderer
+    IZoneManager         zoneManager
 ) : WorldMarkerFactory
 {
     public override string Id          => "Umbra_CounterSpyMarker";
@@ -49,11 +47,19 @@ internal sealed class CounterSpyMarker(
                 null,
                 true
             ),
-            new BooleanMarkerConfigVariable(
-                "ShowEffect",
-                "Show the eye of Sauron on the player targeting you.",
-                null,
-                true
+            new SelectMarkerConfigVariable(
+                "VfxId",
+                "Effect",
+                "The visual effect to show on the player that is targeting you.",
+                "None",
+                new() {
+                    { "", "None" },
+                    { "vfx/common/eff/cmrz_castx1c.avfx", "Light" },
+                    { "vfx/common/eff/levitate0f.avfx", "Levitate" },
+                    { "vfx/common/eff/m0328sp10st0f.avfx", "Rotating Balls" },
+                    { "vfx/common/eff/dkst_over_p0f.avfx", "Blue Aura" },
+                    { "vfx/common/eff/st_akama_kega0j.avfx", "Red Swirls" }
+                }
             ),
             new IntegerMarkerConfigVariable(
                 "PlayerIconId",
@@ -69,6 +75,20 @@ internal sealed class CounterSpyMarker(
                 61510,
                 0
             ),
+            new IntegerMarkerConfigVariable(
+                "MarkerHeight",
+                "Height of the marker relative to the target",
+                "Specifies the height of the world marker relative to the position of the player or NPC that is targeting you. A value of 0 will place the marker at the feet of the target.",
+                2,
+                -10,
+                10
+            ),
+            new BooleanMarkerConfigVariable(
+                "PreviewMode",
+                "Enable preview mode",
+                "Shows the world marker on all players and NPCs that are near you, even if they are not targeting you.",
+                false
+            )
         ];
     }
 
@@ -86,11 +106,10 @@ internal sealed class CounterSpyMarker(
             return;
         }
 
-        CounterSpyRenderer.Enabled = GetConfigValue<bool>("ShowEffect");
+        repository.IsPreviewMode = GetConfigValue<bool>("PreviewMode");
+        CounterSpyRenderer.VfxId = GetConfigValue<string>("VfxId");
 
         uint mapId = zoneManager.CurrentZone.Id;
-
-        List<string> usedIds = [];
 
         List<IGameObject> targets = repository.GetTargets(
             GetConfigValue<bool>("EnablePlayers"),
@@ -102,24 +121,31 @@ internal sealed class CounterSpyMarker(
             return;
         }
 
-        foreach (var obj in targets) {
-            var key = $"CounterSpyMarker_{mapId}_{obj.GameObjectId}";
-            usedIds.Add(key);
+        List<string> usedIds = [];
 
-            int iconId = obj.ObjectKind == ObjectKind.Player
-                ? GetConfigValue<int>("PlayerIconId")
-                : GetConfigValue<int>("NPCIconId");
+        uint    zoneId           = zoneManager.CurrentZone.Id;
+        var     pIconId          = (uint)GetConfigValue<int>("PlayerIconId");
+        var     nIconId          = (uint)GetConfigValue<int>("NPCIconId");
+        var     markerHeight     = GetConfigValue<int>("MarkerHeight");
+        var     showName         = GetConfigValue<bool>("ShowName");
+        var     showTargetingYou = GetConfigValue<bool>("ShowTargetingYou");
+        var     showOnCompass    = GetConfigValue<bool>("ShowOnCompass");
+        Vector2 fadeDist         = new(0.1f, 1f);
+
+        foreach (var obj in targets) {
+            var key = $"CounterSpyMarker_{mapId}_{obj.GameObjectId:x8}";
+            usedIds.Add(key);
 
             SetMarker(
                 new() {
                     Key           = key,
-                    MapId         = zoneManager.CurrentZone.Id,
-                    IconId        = (uint)iconId,
-                    Position      = obj.Position with { Y = obj.Position.Y + 2f },
-                    Label         = GetConfigValue<bool>("ShowName") ? obj.Name.TextValue : "",
-                    SubLabel      = GetConfigValue<bool>("ShowTargetingYou") ? "Targeting you" : null,
-                    FadeDistance  = new(0.1f, 1f),
-                    ShowOnCompass = GetConfigValue<bool>("ShowOnCompass"),
+                    MapId         = zoneId,
+                    IconId        = obj.ObjectKind == ObjectKind.Player ? pIconId : nIconId,
+                    Position      = obj.Position with { Y = obj.Position.Y + markerHeight },
+                    Label         = showName ? obj.Name.TextValue : "",
+                    SubLabel      = showTargetingYou ? "Targeting you" : null,
+                    FadeDistance  = fadeDist,
+                    ShowOnCompass = showOnCompass,
                 }
             );
         }

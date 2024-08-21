@@ -4,10 +4,10 @@
         <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
     </PropertyGroup>
 	<PropertyGroup>
-<!--        <UmbraLibPath>Z:\FFXIV-plugins\una-xiv-plugins\Umbra\out\Release\</UmbraLibPath>-->
+        <UmbraLibPath>Z:\FFXIV-plugins\una-xiv-plugins\Umbra\out\Release\</UmbraLibPath>
     </PropertyGroup>
     <PropertyGroup>
-        <UmbraLibPath>$([System.IO.Directory]::GetDirectories($(appdata)\XIVLauncher\installedPlugins\Umbra\)[0])\</UmbraLibPath>
+<!--        <UmbraLibPath>$([System.IO.Directory]::GetDirectories($(appdata)\XIVLauncher\installedPlugins\Umbra\)[0])\</UmbraLibPath>-->
     </PropertyGroup>
 
     <PropertyGroup>
@@ -24,7 +24,7 @@
     <PropertyGroup>
         <Authors>Una</Authors>
         <Company>Una XIV</Company>
-        <Version>1.1.1</Version>
+        <Version>1.2.0</Version>
         <Description>A counter spy plugin.</Description>
         <Copyright>(C)2024</Copyright>
         <PackageProjectUrl>https://github.com/una-xiv/Umbra.CounterSpyPlugin</PackageProjectUrl>
