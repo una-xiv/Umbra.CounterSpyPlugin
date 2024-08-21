@@ -72,7 +72,6 @@ internal unsafe class VfxManager : IDisposable
         var go = GameObjectManager.Instance()->Objects.GetObjectByGameObjectId(obj.GameObjectId);
 
         if (go == null) {
-            Logger.Info("GameObject not found");
             return 0;
         }
 
@@ -92,7 +91,6 @@ internal unsafe class VfxManager : IDisposable
 
         ActorVfxRemoveHook.Original(ptr, (char)0);
         _vfxActors.Remove(ptr);
-        Logger.Info($"Removed VFX: {ptr:X8}");
     }
 
     private IntPtr ActorVfxNewDetour(string path, IntPtr a2, IntPtr a3, float a4, char a5, ushort a6, char a7)

@@ -63,8 +63,6 @@ internal sealed class CounterSpyRenderer(
         nint ptr = vfx.PlayVfx(VfxId, player);
         if (ptr == 0) return;
 
-        Logger.Info($"Playing VFX for {player.Name}");
-
         _vfxList[player.GameObjectId] = ptr;
     }
 }
