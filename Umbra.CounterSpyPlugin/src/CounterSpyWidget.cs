@@ -96,7 +96,7 @@ public class CounterSpyWidget(
                 Popup.SetButtonDisabled(id, d > 50);
 
                 if (obj is IPlayerCharacter player) {
-                    Popup.SetButtonIcon(id, player.ClassJob.Id + 62000);
+                    Popup.SetButtonIcon(id, player.ClassJob.RowId + 62000);
                 }
 
                 continue;
