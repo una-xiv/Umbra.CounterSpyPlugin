@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Game.Text.SeStringHandling;
 using Umbra.Common;
 using Umbra.Game;
 using Umbra.Widgets;
@@ -19,112 +19,122 @@ public class CounterSpyWidget(
     WidgetInfo                  info,
     string?                     guid         = null,
     Dictionary<string, object>? configValues = null
-) : DefaultToolbarWidget(info, guid, configValues)
+) : StandardToolbarWidget(info, guid, configValues)
 {
     public override MenuPopup Popup { get; } = new();
 
-    private Dictionary<string, List<string>> _menuItems = [];
+    protected override StandardWidgetFeatures Features =>
+        StandardWidgetFeatures.Text |
+        StandardWidgetFeatures.Icon;
+
+    private readonly Dictionary<string, Dictionary<string, MenuPopup.Button>> _menuItems   = [];
+    private readonly MenuPopup.Group                                          _playerGroup = new("Players");
+    private readonly MenuPopup.Group                                          _npcGroup    = new("NPCs");
 
     private CounterSpyRepository Repository    { get; } = Framework.Service<CounterSpyRepository>();
     private IPlayer              Player        { get; } = Framework.Service<IPlayer>();
     private ITargetManager       TargetManager { get; } = Framework.Service<ITargetManager>();
 
-    protected override void Initialize()
+    protected override void OnLoad()
     {
-        Popup.AddGroup("Players", "Players");
-        Popup.AddGroup("NPCs",    "NPCs");
+        Popup.Add(_playerGroup);
+        Popup.Add(_npcGroup);
 
         _menuItems["Players"] = [];
         _menuItems["NPCs"]    = [];
     }
 
-    protected override void OnUpdate()
+    protected override void OnDraw()
     {
-        var               showPlayers = GetConfigValue<bool>("ShowPlayers");
-        var               showNpcs    = GetConfigValue<bool>("ShowNPCs");
-        bool              showIcons   = GetConfigValue<string>("DisplayMode") != "TextOnly";
-        List<IGameObject> playerList  = Repository.GetTargets(showPlayers, false);
-        List<IGameObject> npcList     = Repository.GetTargets(false,       showNpcs);
-        bool              isEmpty     = playerList.Count == 0 && npcList.Count == 0;
+        var showPlayers = GetConfigValue<bool>("ShowPlayers");
+        var showNpcs    = GetConfigValue<bool>("ShowNPCs");
+        var playerList  = Repository.GetTargets(showPlayers, false);
+        var npcList     = Repository.GetTargets(false, showNpcs);
+        var isEmpty     = playerList.Count == 0 && npcList.Count == 0;
 
-        uint iconId = playerList.Count > 0
+        var iconId = playerList.Count > 0
             ? (uint)GetConfigValue<int>("PlayerIconId")
             : npcList.Count > 0
                 ? (uint)GetConfigValue<int>("NPCIconId")
                 : 0u;
 
-        SetIcon(iconId);
+        SetGameIconId(iconId);
 
         Node.Style.IsVisible = !(isEmpty && GetConfigValue<bool>("HideIfEmpty"));
 
-        if (playerList.Count == 0 && npcList.Count == 0) {
-            SetLabel("No targets");
-            SetIcon(null);
+        if (playerList.Count == 0 && npcList.Count == 0)
+        {
+            SetText("No targets");
+            ClearIcon();
             return;
         }
 
-        var label        = "";
         var playersLabel = "";
-        var npcsLabel    = "";
+        var npcLabel     = "";
 
-        if (playerList.Count > 0) {
+        if (playerList.Count > 0)
+        {
             playersLabel = $"Players: {playerList.Count}";
         }
 
-        if (npcList.Count > 0) {
-            npcsLabel = $"NPCs {npcList.Count}";
+        if (npcList.Count > 0)
+        {
+            npcLabel = $"NPCs {npcList.Count}";
         }
 
-        label = $"{playersLabel} {npcsLabel}";
-        SetLabel(label.Trim());
+        var label = $"{playersLabel} {npcLabel}";
+        SetText(label.Trim());
 
-        UpdateMenuItems(playerList, "Players");
-        UpdateMenuItems(npcList,    "NPCs");
-
-        base.OnUpdate();
+        UpdateMenuItems(playerList, _playerGroup);
+        UpdateMenuItems(npcList, _npcGroup);
     }
 
-    private void UpdateMenuItems(List<IGameObject> list, string group)
+    private void UpdateMenuItems(List<IGameObject> list, MenuPopup.Group group)
     {
-        foreach (var obj in list) {
+        if (!_menuItems.ContainsKey(group.Label!)) _menuItems[group.Label!] = [];
+
+        List<string> usedIds = [];
+
+        foreach (var obj in list)
+        {
             var   id   = $"obj_{obj.GameObjectId}";
             float d    = Vector3.Distance(Player.Position, obj.Position);
             var   dist = $"{d:N0} yalms";
 
-            if (Popup.HasButton(id)) {
-                Popup.SetButtonAltLabel(id, dist);
-                Popup.SetButtonDisabled(id, d > 50);
+            usedIds.Add(id);
 
-                if (obj is IPlayerCharacter player) {
-                    Popup.SetButtonIcon(id, player.ClassJob.RowId + 62000);
-                }
-
-                continue;
+            if (!_menuItems[group.Label!].ContainsKey(id))
+            {
+                _menuItems[group.Label!][id] = new MenuPopup.Button(obj.Name.TextValue)
+                {
+                    IsDisabled = d > 50,
+                    Icon       = obj is IPlayerCharacter p ? p.ClassJob.RowId + 62000 : null,
+                    AltText    = dist,
+                    SortIndex  = obj.ObjectIndex,
+                    OnClick    = () => TargetManager.Target = obj,
+                };
             }
 
-            _menuItems[group].Add(id);
-            Popup.AddButton(
-                id,
-                obj.Name.TextValue,
-                obj.ObjectIndex,
-                null,
-                dist,
-                groupId: group,
-                onClick: () => TargetManager.Target = obj
-            );
+            var button = _menuItems[group.Label!][id];
+            group.Add(button);
         }
 
-        foreach (string id in _menuItems[group].ToArray()) {
-            if (list.Find(obj => $"obj_{obj.GameObjectId}" == id) == null) {
-                _menuItems[group].Remove(id);
-                Popup.RemoveButton(id);
+        foreach (var (id, btn) in _menuItems[group.Label!].ToDictionary())
+        {
+            if (!usedIds.Contains(id))
+            {
+                group.Remove(btn);
+                _menuItems[group.Label!].Remove(id);
             }
         }
     }
 
     protected override IEnumerable<IWidgetConfigVariable> GetConfigVariables()
     {
-        return [
+        return
+        [
+            ..base.GetConfigVariables(),
+
             new BooleanWidgetConfigVariable(
                 "HideIfEmpty",
                 "Hide the widget if nothing targets you.",
@@ -157,8 +167,6 @@ public class CounterSpyWidget(
                 61510,
                 0
             ),
-            ..DefaultToolbarWidgetConfigVariables,
-            ..SingleLabelTextOffsetVariables
         ];
     }
 }
