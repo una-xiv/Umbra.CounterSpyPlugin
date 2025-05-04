@@ -13,7 +13,7 @@
     <PropertyGroup>
         <Authors>Una</Authors>
         <Company>Una</Company>
-        <Version>1.0.1.0</Version>
+        <Version>1.0.2</Version>
         <ProductName>CounterSpy Plugin</ProductName>
         <Description>Shows who/what is targeting you.</Description>
         <Copyright>(C)2025</Copyright>
