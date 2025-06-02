@@ -61,6 +61,7 @@ public class CounterSpyWidget(
         SetGameIconId(iconId);
 
         IsVisible = !(isEmpty && GetConfigValue<bool>("HideIfEmpty"));
+        if (!IsVisible) return;
 
         if (playerList.Count == 0 && npcList.Count == 0)
         {
