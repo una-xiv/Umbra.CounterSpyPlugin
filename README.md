@@ -2,12 +2,11 @@
 
 Adds world markers to other players that are currently targeting you.
 
-## Download
+## How to Install
 
-1. Grab the latest version from the [Releases](https://github.com/una-xiv/Umbra.CounterSpyPlugin/releases) page.
-2. Extract the ZIP file somewhere on your computer.
-3. Open Umbra's settings, then go to the "Plugins" category.
-4. Click on "Add plugin" and select the DLL file that you extracted in step 2.
+1. Open Umbra Settings
+2. Navigate to Plugins
+3. Enter `una-xiv` as repo owner and `Umbra.CounterSpyPlugin` as repo name and click the install button.
 
 ## Enable the World Markers
 
